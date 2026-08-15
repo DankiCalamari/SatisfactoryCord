@@ -1,0 +1,21 @@
+server:
+  executable: /opt/satisfactory/FactoryServer.sh
+  workingDirectory: /opt/satisfactory
+  args: []
+  autoRestart: true
+
+discord:
+  enabled: false
+  guildId: ""
+  chatChannelId: ""
+  eventsChannelId: ""
+
+relay:
+  gameToDiscord: true
+  discordToGame: true
+  joins: true
+  serverStatus: true
+
+web:
+  host: 0.0.0.0
+  port: 3000
