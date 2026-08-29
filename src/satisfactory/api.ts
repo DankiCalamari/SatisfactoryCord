@@ -12,7 +12,7 @@ export class SatisfactoryApi {
 
   async health(): Promise<boolean> {
     try {
-      await this.call("QueryServerState", {});
+      await this.call("HealthCheck", { ClientCustomData: "" }, false);
       return true;
     } catch (error) {
       this.logger.debug("HTTPS API health check failed.", { error: error instanceof Error ? error.message : error });
@@ -37,7 +37,7 @@ export class SatisfactoryApi {
     await this.call("Shutdown", {});
   }
 
-  private async call<T>(functionName: string, data: Record<string, unknown>): Promise<T> {
+  private async call<T>(functionName: string, data: Record<string, unknown>, includeAuth = true): Promise<T> {
     const body = JSON.stringify({ function: functionName, data });
     const url = new URL(this.baseUrl);
     const raw = await new Promise<string>((resolve, reject) => {
@@ -51,7 +51,7 @@ export class SatisfactoryApi {
           headers: {
             "content-type": "application/json",
             "content-length": Buffer.byteLength(body),
-            ...(this.config.satisfactoryApi.token
+            ...(includeAuth && this.config.satisfactoryApi.token
               ? { authorization: `Bearer ${this.config.satisfactoryApi.token}` }
               : {})
           }

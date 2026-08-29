@@ -29,7 +29,7 @@ export async function detectCapabilities(
     stdin: processManager.stdin.available,
     factoryGameLog: Boolean(config.server.logPath && fs.existsSync(config.server.logPath)),
     httpsApi,
-    runCommand: commandProvider.available,
+    runCommand: commandProvider.name === "HTTPS API RunCommand" && commandProvider.available,
     gameToDiscordChat: true,
     discordToGameChat: messageProvider.available
   };
