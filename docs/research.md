@@ -32,6 +32,8 @@ Runtime capability detection therefore marks stdin as available only when the pi
 
 The API client implements `RunCommand` as a separated provider. At startup the wrapper attempts a non-destructive `help` command to detect whether the provider is usable with the configured token/server version.
 
+Satisfactory's HTTPS API commonly uses a self-signed certificate. SatisfactoryCord uses Node's `https.request` so `SATISFACTORY_API_REJECT_UNAUTHORIZED=false` is applied directly to the TLS connection.
+
 Important distinction:
 
 - `RunCommand AVAILABLE` means the API accepted command execution.

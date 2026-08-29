@@ -39,20 +39,46 @@ export class SatisfactoryApi {
 
   private async call<T>(functionName: string, data: Record<string, unknown>): Promise<T> {
     const body = JSON.stringify({ function: functionName, data });
-    const agent = new https.Agent({ rejectUnauthorized: this.config.satisfactoryApi.rejectUnauthorized });
-    const response = await fetch(this.baseUrl, {
-      method: "POST",
-      body,
-      agent,
-      headers: {
-        "content-type": "application/json",
-        ...(this.config.satisfactoryApi.token
-          ? { authorization: `Bearer ${this.config.satisfactoryApi.token}` }
-          : {})
-      } as Record<string, string>
-    } as RequestInit & { agent: https.Agent });
-    if (!response.ok) throw new Error(`Satisfactory API ${functionName} failed with HTTP ${response.status}.`);
-    const envelope = (await response.json()) as SatisfactoryApiResponse<T>;
+    const url = new URL(this.baseUrl);
+    const raw = await new Promise<string>((resolve, reject) => {
+      const request = https.request(
+        {
+          hostname: url.hostname,
+          port: url.port,
+          path: url.pathname,
+          method: "POST",
+          rejectUnauthorized: this.config.satisfactoryApi.rejectUnauthorized,
+          headers: {
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(body),
+            ...(this.config.satisfactoryApi.token
+              ? { authorization: `Bearer ${this.config.satisfactoryApi.token}` }
+              : {})
+          }
+        },
+        (response) => {
+          let responseBody = "";
+          response.setEncoding("utf8");
+          response.on("data", (chunk) => {
+            responseBody += chunk;
+          });
+          response.on("end", () => {
+            if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+              reject(new Error(`Satisfactory API ${functionName} failed with HTTP ${response.statusCode}.`));
+              return;
+            }
+            resolve(responseBody);
+          });
+        }
+      );
+      request.on("error", reject);
+      request.setTimeout(10_000, () => {
+        request.destroy(new Error(`Satisfactory API ${functionName} timed out.`));
+      });
+      request.write(body);
+      request.end();
+    });
+    const envelope = JSON.parse(raw || "{}") as SatisfactoryApiResponse<T>;
     if (envelope.errorCode || envelope.errorMessage) {
       throw new Error(`${envelope.errorCode ?? "api_error"}: ${envelope.errorMessage ?? "unknown error"}`);
     }
