@@ -60,6 +60,8 @@ DISCORD_ADMIN_ROLE_ID=
 
 Admin commands require either the configured role or Discord Administrator permission.
 
+For game-to-Discord chat, give the bot `Manage Webhooks` in the chat channel if you want relayed messages to use the in-game player name as the Discord sender name. If webhook access is missing or Discord rejects the webhook, SatisfactoryCord falls back to a normal bot message and logs the reason.
+
 ## Commands
 
 Local terminal:

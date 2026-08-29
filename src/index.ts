@@ -99,7 +99,7 @@ async function main(): Promise<void> {
       void inGameAdmin.handleChat(event.chat);
     }
   });
-  const discordRelay = new DiscordRelay(discordRuntime.client, config);
+  const discordRelay = new DiscordRelay(discordRuntime.client, config, logger);
   const gameChatFilter = new GameChatFilter(config, bus, (event) => discordRelay.handle(event));
   const stopRelay = new NormalisedRelay(bus, (event) => gameChatFilter.handle(event)).start();
 
