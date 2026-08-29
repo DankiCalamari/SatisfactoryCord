@@ -9,6 +9,14 @@ describe("parseLogLine", () => {
             chat: { playerName: "Beau", message: "anyone got spare motors?" }
         });
     });
+    it("parses SatisfactoryCordChatTap plugin chat lines", () => {
+        const events = parseLogLine('LogSatisfactoryCordChatTap: Display: SatisfactoryCordChatTap: [SC_CHAT] player="Pvt.Danki" message="SC_TEST_123"');
+        const chat = events.find((event) => event.type === "game-chat");
+        expect(chat).toMatchObject({
+            type: "game-chat",
+            chat: { playerName: "Pvt.Danki", message: "SC_TEST_123" }
+        });
+    });
     it("does not treat arbitrary log noise as chat", () => {
         const events = parseLogLine("LogNet: Browse: 127.0.0.1/Game/FactoryGame");
         expect(events.some((event) => event.type === "game-chat")).toBe(false);

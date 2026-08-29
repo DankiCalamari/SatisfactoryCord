@@ -167,6 +167,8 @@ Do not update a running server. The safe sequence is save, shutdown, SteamCMD up
 
 Game-to-Discord chat is implemented from stdout/log parsing when the server version emits reliable chat lines.
 
+If your vanilla dedicated server does not write player chat to stdout or `FactoryGame.log`, use the server-side scaffold in `server-plugin/SatisfactoryCordChatTap`. It writes a dedicated `SatisfactoryCordChatTap: [SC_CHAT] ...` log line that the wrapper parses. Satisfactory does not have a vanilla drop-in plugin system, so this must be built through the SML/Alpakit dedicated-server toolchain.
+
 Discord-to-game chat is disabled by default because no verified vanilla command for arbitrary broadcast/chat text was confirmed during this build. If a future or specific server version exposes a safe vanilla command, configure:
 
 ```env

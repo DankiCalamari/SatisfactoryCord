@@ -2,6 +2,7 @@ import type { ServerEvent } from "../bridge/event-bus.js";
 import { sanitiseLogText } from "../utils/sanitise.js";
 
 const chatPatterns = [
+  /SatisfactoryCordChatTap:\s*\[SC_CHAT]\s*player="(?<player>(?:\\.|[^"\\]){1,128})"\s*message="(?<message>(?:\\.|[^"\\]){1,1024})"/i,
   /^\[(?<time>[^\]]+)]\s*\[Chat]\s*(?<player>[^:]{1,64}):\s*(?<message>.+)$/i,
   /^\[Chat]\s*(?<player>[^:]{1,64}):\s*(?<message>.+)$/i,
   /LogChat[^:]*:\s*(?<player>[^:]{1,64}):\s*(?<message>.+)$/i,
@@ -45,12 +46,16 @@ function parseChat(line: string, timestamp: Date): ServerEvent | undefined {
   for (const pattern of chatPatterns) {
     const match = line.match(pattern);
     if (!match?.groups) continue;
-    const playerName = sanitiseLogText(match.groups.player ?? "").slice(0, 64);
-    const message = sanitiseLogText(match.groups.message ?? "").slice(0, 500);
+    const playerName = sanitiseLogText(unescapeLogValue(match.groups.player ?? "")).slice(0, 64);
+    const message = sanitiseLogText(unescapeLogValue(match.groups.message ?? "")).slice(0, 500);
     if (!playerName || !message) continue;
     return { type: "game-chat", chat: { timestamp, playerName, message } };
   }
   return undefined;
+}
+
+function unescapeLogValue(value: string): string {
+  return value.replace(/\\"/g, "\"").replace(/\\\\/g, "\\");
 }
 
 function firstMatch(line: string, patterns: RegExp[]): string | undefined {

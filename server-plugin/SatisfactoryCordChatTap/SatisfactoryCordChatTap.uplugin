@@ -1,0 +1,25 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "SatisfactoryCord Chat Tap",
+  "Description": "Dedicated-server chat log tap for SatisfactoryCord.",
+  "Category": "Server",
+  "CreatedBy": "SatisfactoryCord",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "SatisfactoryCordChatTap",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "SML",
+      "Enabled": true
+    }
+  ]
+}
