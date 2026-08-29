@@ -34,6 +34,7 @@ For an existing server, set:
 ```env
 SATISFACTORY_EXECUTABLE=/existing/server/FactoryServer.sh
 SATISFACTORY_WORKING_DIRECTORY=/existing/server
+SATISFACTORY_LOG_PATH=/existing/server/FactoryGame/Saved/Logs/FactoryGame.log
 ```
 
 On Windows:
@@ -41,6 +42,7 @@ On Windows:
 ```env
 SATISFACTORY_EXECUTABLE=C:\SatisfactoryDedicatedServer\FactoryServer.exe
 SATISFACTORY_WORKING_DIRECTORY=C:\SatisfactoryDedicatedServer
+SATISFACTORY_LOG_PATH=C:\SatisfactoryDedicatedServer\FactoryGame\Saved\Logs\FactoryGame.log
 ```
 
 ## Discord

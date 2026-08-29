@@ -38,6 +38,6 @@ export default [
     }
   },
   {
-    ignores: ["dist/**", "node_modules/**", "logs/**", "data/**", "backups/**", "outputs/**"]
+    ignores: ["dist/**", "node_modules/**", "logs/**", "data/**", "backups/**", "outputs/**", "work/**"]
   }
 ];

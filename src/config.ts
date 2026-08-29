@@ -81,12 +81,16 @@ export type AppConfig = z.infer<typeof configSchema>;
 
 export function loadConfig(configPath = "config.yml"): AppConfig {
   const fileConfig = readConfigFile(configPath);
+  const workingDirectory = env(
+    "SATISFACTORY_WORKING_DIRECTORY",
+    fileConfig.server?.workingDirectory ?? process.cwd()
+  );
   const cfg = {
     server: {
       executable: env("SATISFACTORY_EXECUTABLE", fileConfig.server?.executable ?? defaultExecutable()),
       args: splitArgs(env("SATISFACTORY_ARGS", fileConfig.server?.args)),
-      workingDirectory: env("SATISFACTORY_WORKING_DIRECTORY", fileConfig.server?.workingDirectory ?? process.cwd()),
-      logPath: optionalEnv("SATISFACTORY_LOG_PATH", fileConfig.server?.logPath),
+      workingDirectory,
+      logPath: optionalEnv("SATISFACTORY_LOG_PATH", fileConfig.server?.logPath ?? defaultLogPath(workingDirectory)),
       autoRestart: boolEnv("AUTO_RESTART", fileConfig.server?.autoRestart ?? true),
       autoRestartDelay: intEnv("AUTO_RESTART_DELAY", fileConfig.server?.autoRestartDelay ?? 10),
       maxCrashRestarts: intEnv("MAX_CRASH_RESTARTS", fileConfig.server?.maxCrashRestarts ?? 5),
@@ -206,4 +210,8 @@ function defaultExecutable(): string {
   return process.platform === "win32"
     ? "C:\\SatisfactoryDedicatedServer\\FactoryServer.exe"
     : "/opt/satisfactory/FactoryServer.sh";
+}
+
+function defaultLogPath(workingDirectory: string): string {
+  return path.join(workingDirectory, "FactoryGame", "Saved", "Logs", "FactoryGame.log");
 }

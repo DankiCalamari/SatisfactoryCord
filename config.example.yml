@@ -1,6 +1,7 @@
 server:
   executable: /opt/satisfactory/FactoryServer.sh
   workingDirectory: /opt/satisfactory
+  logPath: /opt/satisfactory/FactoryGame/Saved/Logs/FactoryGame.log
   args: []
   autoRestart: true
 
