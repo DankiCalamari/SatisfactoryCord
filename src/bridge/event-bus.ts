@@ -15,6 +15,8 @@ export type ServerEvent =
   | { type: "server-stopped"; timestamp: Date; code: number | null; signal: NodeJS.Signals | null }
   | { type: "server-crashed"; timestamp: Date; code: number | null; signal: NodeJS.Signals | null }
   | { type: "save-completed"; timestamp: Date; saveName?: string }
+  | { type: "chat-moderation"; timestamp: Date; playerName: string; message: string; action: string; reasons: string[] }
+  | { type: "admin-command"; timestamp: Date; playerName: string; command: string; outcome: string }
   | { type: "console"; timestamp: Date; level: "debug" | "info" | "warning" | "error"; line: string };
 
 export class EventBus extends EventEmitter {

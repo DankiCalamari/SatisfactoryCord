@@ -14,6 +14,8 @@ No SML, no FRM, no modified game files, no client changes.
 - Watches `FactoryGame.log` without rereading the whole file
 - Uses the vanilla HTTPS API and `RunCommand` when available
 - Relays supported game chat/events to Discord
+- Moderates game chat before Discord relay
+- Supports wrapper/admin commands from in-game chat for allowlisted player names
 - Provides Discord slash commands and local terminal commands
 - Exposes a simple dashboard and `GET /health`
 - Supports Linux, Windows, Docker, and existing server installs
@@ -86,6 +88,49 @@ Discord:
 /satisfactory capabilities
 /satisfactory help
 ```
+
+In-game chat commands, when enabled:
+
+```text
+!sc help
+!sc status
+!sc players
+!sc save
+!sc restart
+!sc stop
+!sc start
+!sc capabilities
+!sc console <command>
+```
+
+Enable them with:
+
+```env
+IN_GAME_ADMIN_ENABLED=true
+IN_GAME_ADMIN_PREFIX=!sc
+IN_GAME_ADMIN_PLAYERS=Beau,Ren
+IN_GAME_ADMIN_ALLOW_CONSOLE=false
+```
+
+In-game admin authorisation uses the player name parsed from vanilla server chat/log output. Treat this as suitable for trusted/private servers, not as identity-grade authentication for public servers.
+
+## Chat Moderation
+
+SatisfactoryCord can block selected game chat before it is relayed to Discord:
+
+```env
+CHAT_MODERATION_ENABLED=true
+CHAT_BLOCKED_WORDS_FILE=config/blocked-words.txt
+CHAT_BLOCKED_TERMS=term1,term2
+CHAT_BLOCKED_PATTERNS=
+CHAT_MAX_MESSAGE_LENGTH=500
+CHAT_MAX_REPEATED_CHARACTERS=12
+CHAT_BLOCK_DISCORD_MENTIONS=true
+CHAT_MODERATION_NOTIFY_DISCORD=true
+RELAY_HIDE_IN_GAME_COMMANDS=true
+```
+
+Moderation blocks Discord mention abuse, overlong messages, repeated-character spam, configured terms, terms from `config/blocked-words.txt`, and configured regular expressions before messages are relayed to Discord. It does not filter, delete, or alter chat inside Satisfactory because SatisfactoryCord remains an external wrapper.
 
 ## Docker
 

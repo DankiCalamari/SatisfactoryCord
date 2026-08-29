@@ -15,6 +15,24 @@ relay:
   discordToGame: true
   joins: true
   serverStatus: true
+  hideInGameCommands: true
+
+moderation:
+  enabled: false
+  blockedWordsFile: config/blocked-words.txt
+  blockedTerms: []
+  blockedPatterns: []
+  maxMessageLength: 500
+  maxRepeatedCharacters: 12
+  blockDiscordMentions: true
+  notifyDiscord: true
+
+inGameAdmin:
+  enabled: false
+  prefix: "!sc"
+  adminPlayers: []
+  allowConsole: false
+  requireExactNameMatch: true
 
 web:
   host: 0.0.0.0

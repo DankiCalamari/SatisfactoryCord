@@ -15,6 +15,7 @@ COPY --from=build /app/package.json /app/package-lock.json* ./
 RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/README.md /app/.env.example ./
+COPY --from=build /app/config ./config
 RUN mkdir -p /app/logs /app/data /satisfactory /backups \
   && chown -R satisfactory:satisfactory /app /satisfactory /backups
 USER satisfactory

@@ -1,0 +1,629 @@
+{
+  "_comment": "SatisfactoryCord Pelican egg. Runs a completely vanilla Satisfactory Dedicated Server through the SatisfactoryCord Node.js wrapper.",
+  "meta": {
+    "version": "PLCN_v1",
+    "update_url": null
+  },
+  "exported_at": "2026-08-15T00:00:00+10:00",
+  "name": "SatisfactoryCord",
+  "author": "SatisfactoryCord",
+  "uuid": "c0810d95-8ce8-47d5-93a9-3fe052b4f00c",
+  "description": "SatisfactoryCord launches and supervises a vanilla Satisfactory Dedicated Server, then bridges supported server events and chat with Discord. No SML, FRM, mods, client changes, DLL injection, or modified game files.",
+  "tags": [
+    "steamcmd",
+    "satisfactory",
+    "discord",
+    "wrapper"
+  ],
+  "features": [
+    "steam_disk_space"
+  ],
+  "docker_images": {
+    "SteamCMD Debian": "ghcr.io/parkervcp/steamcmd:debian"
+  },
+  "file_denylist": [],
+  "startup": "if [ \"${AUTO_UPDATE}\" = \"1\" ]; then ./steamcmd/steamcmd.sh +force_install_dir /home/container +login anonymous +app_update ${SRCDS_APPID} $( [[ -z ${SRCDS_BETAID} ]] || printf %s \"-beta ${SRCDS_BETAID}\" ) $( [[ -z ${SRCDS_BETAPASS} ]] || printf %s \"-betapassword ${SRCDS_BETAPASS}\" ) $( [[ -z ${VALIDATE} ]] || printf %s \"validate\" ) +quit; fi; if [ ! -x /home/container/satisfactorycord-node/bin/node ]; then echo \"Missing bundled Node runtime. Reinstall the server or run the install script.\"; exit 1; fi; if [ ! -f /home/container/satisfactorycord/dist/src/index.js ]; then echo \"Missing SatisfactoryCord app files in /home/container/satisfactorycord.\"; echo \"Upload satisfactorycord.zip contents there, or set SATISFACTORYCORD_ARCHIVE_URL and reinstall.\"; exit 1; fi; cd /home/container/satisfactorycord && /home/container/satisfactorycord-node/bin/node dist/src/index.js",
+  "config": {
+    "files": "{\r\n    \"FactoryGame/Saved/Config/LinuxServer/Game.ini\": {\r\n        \"parser\": \"ini\",\r\n        \"find\": {\r\n            \"[/Script/Engine.GameSession].MaxPlayers\": \"{{server.environment.MAX_PLAYERS}}\"\r\n        }\r\n    },\r\n    \"FactoryGame/Saved/Config/LinuxServer/Engine.ini\": {\r\n        \"parser\": \"ini\",\r\n        \"find\": {\r\n            \"[/Script/FactoryGame.FGSaveSession].mNumRotatingAutosaves\": \"{{server.environment.NUM_AUTOSAVES}}\",\r\n            \"[/Script/OnlineSubsystemUtils.IpNetDriver].InitialConnectTimeout\": \"{{server.environment.INIT_CONNECT_TIMEOUT}}\",\r\n            \"[/Script/OnlineSubsystemUtils.IpNetDriver].ConnectionTimeout\": \"{{server.environment.CONNECT_TIMEOUT}}\"\r\n        }\r\n    }\r\n}",
+    "startup": "{\r\n    \"done\": \"SatisfactoryCord capabilities\"\r\n}",
+    "logs": "{}",
+    "stop": "^SIGTERM"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\r\nset -euo pipefail\r\n\r\ncd /mnt/server\r\nexport HOME=/mnt/server\r\n\r\necho \"Installing Satisfactory Dedicated Server for SatisfactoryCord...\"\r\napt-get update\r\napt-get install -y --no-install-recommends ca-certificates curl tar xz-utils unzip\r\n\r\ncd /tmp\r\ncurl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz\r\nmkdir -p /mnt/server/steamcmd\r\ntar -xzvf steamcmd.tar.gz -C /mnt/server/steamcmd\r\ncd /mnt/server/steamcmd\r\n\r\n./steamcmd.sh +force_install_dir /mnt/server +login anonymous +app_update ${SRCDS_APPID} $( [[ -z ${SRCDS_BETAID:-} ]] || printf %s \"-beta ${SRCDS_BETAID}\" ) $( [[ -z ${SRCDS_BETAPASS:-} ]] || printf %s \"-betapassword ${SRCDS_BETAPASS}\" ) validate +quit\r\n\r\nmkdir -p /mnt/server/.steam/sdk{32,64}\r\ncp -vf linux32/steamclient.so /mnt/server/.steam/sdk32/steamclient.so\r\ncp -vf linux64/steamclient.so /mnt/server/.steam/sdk64/steamclient.so\r\n\r\nif [ -d /mnt/server/Engine/Binaries/Linux ]; then\r\n  chmod +x /mnt/server/Engine/Binaries/Linux/*-Linux-Shipping || true\r\nfi\r\n\r\nif [ ! -f /mnt/server/FactoryServer.sh ]; then\r\n  cat > /mnt/server/FactoryServer.sh <<'EOF'\r\n#!/bin/bash\r\nset -e\r\ncd \"$(dirname \"$0\")\"\r\nexec ./Engine/Binaries/Linux/*-Linux-Shipping FactoryGame \"$@\"\r\nEOF\r\nfi\r\nchmod +x /mnt/server/FactoryServer.sh\r\n\r\nNODE_VERSION=\"${NODE_VERSION:-v22.13.1}\"\r\nNODE_ARCH=\"linux-x64\"\r\nif [ \"$(uname -m)\" = \"aarch64\" ] || [ \"$(uname -m)\" = \"arm64\" ]; then NODE_ARCH=\"linux-arm64\"; fi\r\nNODE_DIR=/mnt/server/satisfactorycord-node\r\nrm -rf \"$NODE_DIR\"\r\nmkdir -p \"$NODE_DIR\"\r\ncd /tmp\r\ncurl -sSL -o node.tar.xz \"https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${NODE_ARCH}.tar.xz\"\r\ntar -xJf node.tar.xz --strip-components=1 -C \"$NODE_DIR\"\r\n\r\nif [ -n \"${SATISFACTORYCORD_ARCHIVE_URL:-}\" ]; then\r\n  echo \"Downloading SatisfactoryCord from ${SATISFACTORYCORD_ARCHIVE_URL}...\"\r\n  rm -rf /mnt/server/satisfactorycord /tmp/satisfactorycord-unpack\r\n  mkdir -p /mnt/server/satisfactorycord /tmp/satisfactorycord-unpack\r\n  curl -sSL -o /tmp/satisfactorycord.zip \"${SATISFACTORYCORD_ARCHIVE_URL}\"\r\n  unzip -q /tmp/satisfactorycord.zip -d /tmp/satisfactorycord-unpack\r\n  if [ -f /tmp/satisfactorycord-unpack/package.json ]; then\r\n    cp -R /tmp/satisfactorycord-unpack/. /mnt/server/satisfactorycord/\r\n  else\r\n    APP_ROOT=$(find /tmp/satisfactorycord-unpack -maxdepth 2 -name package.json -print -quit | xargs dirname)\r\n    cp -R \"$APP_ROOT\"/. /mnt/server/satisfactorycord/\r\n  fi\r\n  cd /mnt/server/satisfactorycord\r\n  /mnt/server/satisfactorycord-node/bin/npm install --omit=dev\r\nelse\r\n  mkdir -p /mnt/server/satisfactorycord\r\n  echo \"SATISFACTORYCORD_ARCHIVE_URL is empty. Upload SatisfactoryCord files into /home/container/satisfactorycord after install.\"\r\nfi\r\n\r\necho \"SatisfactoryCord egg installation complete.\"\r\n",
+      "container": "ghcr.io/parkervcp/installers:debian",
+      "entrypoint": "/bin/bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "[Host] Reliable Messaging Port",
+      "description": "Satisfactory reliable messaging port. Clients connect to the primary game port, not this port.",
+      "env_variable": "RELIABLE_PORT",
+      "default_value": "8888",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": [
+        "required",
+        "integer",
+        "min:0",
+        "max:65535"
+      ],
+      "sort": 1
+    },
+    {
+      "name": "Automatic Updates",
+      "description": "Run SteamCMD update before SatisfactoryCord starts. Do not use this for major changes without backups.",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "boolean"
+      ],
+      "sort": 2
+    },
+    {
+      "name": "Validate Server Files",
+      "description": "When Automatic Updates is enabled, add SteamCMD validate. Leave empty for off, use 1 for on.",
+      "env_variable": "VALIDATE",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 3
+    },
+    {
+      "name": "SatisfactoryCord Archive URL",
+      "description": "Optional direct URL to satisfactorycord.zip. If blank, upload the SatisfactoryCord files to /home/container/satisfactorycord manually after install.",
+      "env_variable": "SATISFACTORYCORD_ARCHIVE_URL",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 4
+    },
+    {
+      "name": "Node.js Version",
+      "description": "Bundled Node.js runtime version downloaded during installation.",
+      "env_variable": "NODE_VERSION",
+      "default_value": "v22.13.1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "regex:/^v22\\.[0-9]+\\.[0-9]+$/"
+      ],
+      "sort": 5
+    },
+    {
+      "name": "Satisfactory Executable",
+      "description": "Path inside the Pelican runtime container. The install script creates /home/container/FactoryServer.sh if needed.",
+      "env_variable": "SATISFACTORY_EXECUTABLE",
+      "default_value": "/home/container/FactoryServer.sh",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 10
+    },
+    {
+      "name": "Satisfactory Working Directory",
+      "description": "Directory containing FactoryServer.sh.",
+      "env_variable": "SATISFACTORY_WORKING_DIRECTORY",
+      "default_value": "/home/container",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 11
+    },
+    {
+      "name": "Satisfactory Arguments",
+      "description": "Arguments passed by SatisfactoryCord to FactoryServer. Keep as arguments, not a shell command.",
+      "env_variable": "SATISFACTORY_ARGS",
+      "default_value": "-Port={{SERVER_PORT}} -ReliablePort={{RELIABLE_PORT}}",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 12
+    },
+    {
+      "name": "FactoryGame Log Path",
+      "description": "Optional FactoryGame.log path for event/chat parsing.",
+      "env_variable": "SATISFACTORY_LOG_PATH",
+      "default_value": "/home/container/FactoryGame/Saved/Logs/FactoryGame.log",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 13
+    },
+    {
+      "name": "Satisfactory API Host",
+      "description": "HTTPS API host from inside the same container.",
+      "env_variable": "SATISFACTORY_API_HOST",
+      "default_value": "127.0.0.1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 14
+    },
+    {
+      "name": "Satisfactory API Port",
+      "description": "HTTPS API port.",
+      "env_variable": "SATISFACTORY_API_PORT",
+      "default_value": "7777",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:1",
+        "max:65535"
+      ],
+      "sort": 15
+    },
+    {
+      "name": "Satisfactory API Token",
+      "description": "Optional Satisfactory Dedicated Server API token. Hidden from normal view.",
+      "env_variable": "SATISFACTORY_API_TOKEN",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 16
+    },
+    {
+      "name": "Reject Unauthorized API TLS",
+      "description": "Set false for the dedicated server's self-signed HTTPS certificate.",
+      "env_variable": "SATISFACTORY_API_REJECT_UNAUTHORIZED",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 17
+    },
+    {
+      "name": "Discord Enabled",
+      "description": "Start with false for first boot, then enable after FactoryServer works.",
+      "env_variable": "DISCORD_ENABLED",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 30
+    },
+    {
+      "name": "Discord Bot Token",
+      "description": "Discord bot token. Hidden from normal view.",
+      "env_variable": "DISCORD_TOKEN",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 31
+    },
+    {
+      "name": "Discord Guild ID",
+      "description": "Guild/server ID where slash commands should be registered.",
+      "env_variable": "DISCORD_GUILD_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 32
+    },
+    {
+      "name": "Discord Chat Channel ID",
+      "description": "Channel ID for game chat relay.",
+      "env_variable": "DISCORD_CHAT_CHANNEL_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 33
+    },
+    {
+      "name": "Discord Events Channel ID",
+      "description": "Channel ID for server events. Leave blank to reuse chat channel.",
+      "env_variable": "DISCORD_EVENTS_CHANNEL_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 34
+    },
+    {
+      "name": "Discord Admin Role ID",
+      "description": "Role allowed to run admin slash commands. Discord Administrator also works.",
+      "env_variable": "DISCORD_ADMIN_ROLE_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 35
+    },
+    {
+      "name": "Chat Moderation Enabled",
+      "description": "Block configured game chat before relaying it to Discord.",
+      "env_variable": "CHAT_MODERATION_ENABLED",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 40
+    },
+    {
+      "name": "Chat Blocked Words File",
+      "description": "Path to the child-friendly blocked words file. Edit this file in the Pelican file manager.",
+      "env_variable": "CHAT_BLOCKED_WORDS_FILE",
+      "default_value": "/home/container/satisfactorycord/config/blocked-words.txt",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 41
+    },
+    {
+      "name": "Chat Blocked Terms",
+      "description": "Comma-separated terms blocked from Discord relay.",
+      "env_variable": "CHAT_BLOCKED_TERMS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 41
+    },
+    {
+      "name": "Chat Blocked Patterns",
+      "description": "Comma-separated JavaScript regular expressions blocked from Discord relay.",
+      "env_variable": "CHAT_BLOCKED_PATTERNS",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 42
+    },
+    {
+      "name": "Chat Max Message Length",
+      "description": "Maximum game chat length allowed through to Discord.",
+      "env_variable": "CHAT_MAX_MESSAGE_LENGTH",
+      "default_value": "500",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:1"
+      ],
+      "sort": 43
+    },
+    {
+      "name": "Chat Max Repeated Characters",
+      "description": "Block repeated-character spam at this count. Use 0 to disable.",
+      "env_variable": "CHAT_MAX_REPEATED_CHARACTERS",
+      "default_value": "12",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:0"
+      ],
+      "sort": 44
+    },
+    {
+      "name": "Block Discord Mentions",
+      "description": "Block game chat that tries to ping everyone, here, users, or roles in Discord.",
+      "env_variable": "CHAT_BLOCK_DISCORD_MENTIONS",
+      "default_value": "true",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 45
+    },
+    {
+      "name": "In-Game Admin Enabled",
+      "description": "Allow trusted in-game players to run SatisfactoryCord commands from chat.",
+      "env_variable": "IN_GAME_ADMIN_ENABLED",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 46
+    },
+    {
+      "name": "In-Game Admin Prefix",
+      "description": "Prefix for in-game SatisfactoryCord commands.",
+      "env_variable": "IN_GAME_ADMIN_PREFIX",
+      "default_value": "!sc",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 47
+    },
+    {
+      "name": "In-Game Admin Players",
+      "description": "Comma-separated exact player names allowed to run in-game admin commands.",
+      "env_variable": "IN_GAME_ADMIN_PLAYERS",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 48
+    },
+    {
+      "name": "Allow In-Game Console Command",
+      "description": "Allow !sc console from in-game chat. Keep false unless the server is trusted.",
+      "env_variable": "IN_GAME_ADMIN_ALLOW_CONSOLE",
+      "default_value": "false",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 49
+    },
+    {
+      "name": "Dashboard Host",
+      "description": "Dashboard bind host. Use 0.0.0.0 inside Pelican.",
+      "env_variable": "WEB_HOST",
+      "default_value": "0.0.0.0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "string"
+      ],
+      "sort": 50
+    },
+    {
+      "name": "Dashboard Port",
+      "description": "Optional dashboard port. Add a Pelican TCP allocation if exposing it.",
+      "env_variable": "WEB_PORT",
+      "default_value": "3000",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:1",
+        "max:65535"
+      ],
+      "sort": 51
+    },
+    {
+      "name": "Wrapper Log Level",
+      "description": "SatisfactoryCord log level.",
+      "env_variable": "LOG_LEVEL",
+      "default_value": "info",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:debug,info,warning,error"
+      ],
+      "sort": 52
+    },
+    {
+      "name": "Wrapper Auto Restart",
+      "description": "Restart FactoryServer after unexpected exit.",
+      "env_variable": "AUTO_RESTART",
+      "default_value": "true",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "in:true,false"
+      ],
+      "sort": 60
+    },
+    {
+      "name": "Auto Restart Delay",
+      "description": "Seconds to wait before automatic restart.",
+      "env_variable": "AUTO_RESTART_DELAY",
+      "default_value": "10",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:0"
+      ],
+      "sort": 61
+    },
+    {
+      "name": "Max Crash Restarts",
+      "description": "Maximum crash restarts inside the crash window.",
+      "env_variable": "MAX_CRASH_RESTARTS",
+      "default_value": "5",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:0"
+      ],
+      "sort": 62
+    },
+    {
+      "name": "Crash Restart Window",
+      "description": "Crash restart window in seconds.",
+      "env_variable": "CRASH_RESTART_WINDOW",
+      "default_value": "600",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:1"
+      ],
+      "sort": 63
+    },
+    {
+      "name": "Number of Rotating Autosaves",
+      "description": "Number of session auto-saves to keep.",
+      "env_variable": "NUM_AUTOSAVES",
+      "default_value": "3",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:0"
+      ],
+      "sort": 80
+    },
+    {
+      "name": "Max Players",
+      "description": "Maximum player count written to Game.ini.",
+      "env_variable": "MAX_PLAYERS",
+      "default_value": "4",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "integer",
+        "min:1"
+      ],
+      "sort": 81
+    },
+    {
+      "name": "Client Initial Connection Timeout",
+      "description": "Time in seconds to wait for a new client connection.",
+      "env_variable": "INIT_CONNECT_TIMEOUT",
+      "default_value": "30",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "numeric",
+        "min:1"
+      ],
+      "sort": 82
+    },
+    {
+      "name": "Client Established Connection Timeout",
+      "description": "Time in seconds before considering an established connection timed out.",
+      "env_variable": "CONNECT_TIMEOUT",
+      "default_value": "20",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "required",
+        "numeric",
+        "min:1"
+      ],
+      "sort": 83
+    },
+    {
+      "name": "Satisfactory Branch Name",
+      "description": "Optional Steam branch. Accepted values are public, experimental, or blank.",
+      "env_variable": "SRCDS_BETAID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable",
+        "in:public,experimental"
+      ],
+      "sort": 90
+    },
+    {
+      "name": "Satisfactory Branch Password",
+      "description": "Optional Steam beta branch password.",
+      "env_variable": "SRCDS_BETAPASS",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": [
+        "string",
+        "nullable"
+      ],
+      "sort": 91
+    },
+    {
+      "name": "Satisfactory Dedicated Server App ID",
+      "description": "Steam app ID for Satisfactory Dedicated Server.",
+      "env_variable": "SRCDS_APPID",
+      "default_value": "1690800",
+      "user_viewable": false,
+      "user_editable": false,
+      "rules": [
+        "required",
+        "integer",
+        "in:1690800"
+      ],
+      "sort": 99
+    }
+  ]
+}

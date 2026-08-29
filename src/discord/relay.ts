@@ -27,6 +27,12 @@ export class DiscordRelay {
     if (event.type === "server-ready" && this.config.relay.serverStatus) {
       await this.sendEvent("Satisfactory server is ready.");
     }
+    if (event.type === "admin-command") {
+      await this.sendEvent(`Admin command: ${event.outcome}`);
+    }
+    if (event.type === "chat-moderation" && this.config.moderation.notifyDiscord) {
+      await this.sendEvent(`Chat moderation ${event.action}: ${event.playerName} (${event.reasons.join(", ")})`);
+    }
   }
 
   async sendEvent(message: string): Promise<void> {

@@ -25,6 +25,12 @@ export function fingerprint(event: ServerEvent): string {
   if (event.type === "game-chat") {
     return `${event.type}:${event.chat.playerName}:${event.chat.message}`;
   }
+  if (event.type === "chat-moderation") {
+    return `${event.type}:${event.playerName}:${event.action}:${event.reasons.join(",")}:${event.message}`;
+  }
+  if (event.type === "admin-command") {
+    return `${event.type}:${event.playerName}:${event.command}:${event.outcome}`;
+  }
   if ("playerName" in event) return `${event.type}:${event.playerName}`;
   if (event.type === "console") return `${event.type}:${event.level}:${event.line}`;
   return event.type;

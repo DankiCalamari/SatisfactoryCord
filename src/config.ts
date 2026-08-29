@@ -38,7 +38,25 @@ const configSchema = z.object({
     gameToDiscord: z.boolean(),
     discordToGame: z.boolean(),
     joins: z.boolean(),
-    serverStatus: z.boolean()
+    serverStatus: z.boolean(),
+    hideInGameCommands: z.boolean()
+  }),
+  moderation: z.object({
+    enabled: z.boolean(),
+    blockedWordsFile: z.string(),
+    blockedTerms: z.array(z.string()),
+    blockedPatterns: z.array(z.string()),
+    maxMessageLength: z.number().int().min(1),
+    maxRepeatedCharacters: z.number().int().min(0),
+    blockDiscordMentions: z.boolean(),
+    notifyDiscord: z.boolean()
+  }),
+  inGameAdmin: z.object({
+    enabled: z.boolean(),
+    prefix: z.string().min(1),
+    adminPlayers: z.array(z.string()),
+    allowConsole: z.boolean(),
+    requireExactNameMatch: z.boolean()
   }),
   web: z.object({
     host: z.string(),
@@ -97,7 +115,31 @@ export function loadConfig(configPath = "config.yml"): AppConfig {
       gameToDiscord: boolEnv("RELAY_GAME_TO_DISCORD", fileConfig.relay?.gameToDiscord ?? true),
       discordToGame: boolEnv("RELAY_DISCORD_TO_GAME", fileConfig.relay?.discordToGame ?? true),
       joins: boolEnv("RELAY_JOINS", fileConfig.relay?.joins ?? true),
-      serverStatus: boolEnv("RELAY_SERVER_STATUS", fileConfig.relay?.serverStatus ?? true)
+      serverStatus: boolEnv("RELAY_SERVER_STATUS", fileConfig.relay?.serverStatus ?? true),
+      hideInGameCommands: boolEnv("RELAY_HIDE_IN_GAME_COMMANDS", fileConfig.relay?.hideInGameCommands ?? true)
+    },
+    moderation: {
+      enabled: boolEnv("CHAT_MODERATION_ENABLED", fileConfig.moderation?.enabled ?? false),
+      blockedWordsFile: env(
+        "CHAT_BLOCKED_WORDS_FILE",
+        fileConfig.moderation?.blockedWordsFile ?? "config/blocked-words.txt"
+      ),
+      blockedTerms: listEnv("CHAT_BLOCKED_TERMS", fileConfig.moderation?.blockedTerms ?? []),
+      blockedPatterns: listEnv("CHAT_BLOCKED_PATTERNS", fileConfig.moderation?.blockedPatterns ?? []),
+      maxMessageLength: intEnv("CHAT_MAX_MESSAGE_LENGTH", fileConfig.moderation?.maxMessageLength ?? 500),
+      maxRepeatedCharacters: intEnv("CHAT_MAX_REPEATED_CHARACTERS", fileConfig.moderation?.maxRepeatedCharacters ?? 12),
+      blockDiscordMentions: boolEnv("CHAT_BLOCK_DISCORD_MENTIONS", fileConfig.moderation?.blockDiscordMentions ?? true),
+      notifyDiscord: boolEnv("CHAT_MODERATION_NOTIFY_DISCORD", fileConfig.moderation?.notifyDiscord ?? true)
+    },
+    inGameAdmin: {
+      enabled: boolEnv("IN_GAME_ADMIN_ENABLED", fileConfig.inGameAdmin?.enabled ?? false),
+      prefix: env("IN_GAME_ADMIN_PREFIX", fileConfig.inGameAdmin?.prefix ?? "!sc"),
+      adminPlayers: listEnv("IN_GAME_ADMIN_PLAYERS", fileConfig.inGameAdmin?.adminPlayers ?? []),
+      allowConsole: boolEnv("IN_GAME_ADMIN_ALLOW_CONSOLE", fileConfig.inGameAdmin?.allowConsole ?? false),
+      requireExactNameMatch: boolEnv(
+        "IN_GAME_ADMIN_REQUIRE_EXACT_NAME_MATCH",
+        fileConfig.inGameAdmin?.requireExactNameMatch ?? true
+      )
     },
     web: {
       host: env("WEB_HOST", fileConfig.web?.host ?? "0.0.0.0"),
@@ -149,6 +191,15 @@ function intEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) throw new Error(`${name} must be an integer.`);
   return parsed;
+}
+
+function listEnv(name: string, fallback: string[]): string[] {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function defaultExecutable(): string {

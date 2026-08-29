@@ -61,6 +61,35 @@ SATISFACTORY_VERIFIED_BROADCAST_COMMAND=<command>
 
 SatisfactoryCord will still sanitize and single-argument encode text before sending it. If the message cannot be safely encoded, it is rejected.
 
+## In-Game Wrapper/Admin Commands
+
+SatisfactoryCord can parse commands from game chat when chat lines are visible through stdout or `FactoryGame.log`.
+
+Example:
+
+```text
+!sc status
+!sc save
+!sc restart
+```
+
+This remains vanilla because SatisfactoryCord only reads normal server output/logs and then uses the already implemented wrapper/API/control paths. It does not inject mods into the game.
+
+Security note: vanilla chat/log parsing may expose a display name, not a cryptographically verified account identity. `IN_GAME_ADMIN_PLAYERS` is therefore a name allowlist and should be used on trusted/private servers. Keep `IN_GAME_ADMIN_ALLOW_CONSOLE=false` unless you have a specific operational need.
+
+## Chat Moderation
+
+Chat moderation runs before game chat is relayed to Discord. It can block:
+
+- terms from `config/blocked-words.txt`
+- configured terms
+- configured regular expression patterns
+- Discord mention abuse
+- overlong messages
+- repeated-character spam
+
+It does not delete or alter the original message inside the live Satisfactory server. Without mods, the wrapper cannot rewrite the game's internal chat stream.
+
 ## Probe Utility
 
 `npm run probe` performs non-destructive capability checks:

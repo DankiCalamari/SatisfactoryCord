@@ -1,0 +1,14 @@
+node_modules/
+logs/
+data/
+backups/
+work/
+outputs/
+
+.env
+config.yml
+*.log
+*.tmp
+
+!.env.example
+!config/blocked-words.txt

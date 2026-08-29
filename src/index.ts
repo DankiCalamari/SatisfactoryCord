@@ -21,6 +21,8 @@ import { createDiscordClient } from "./discord/client.js";
 import { DiscordRelay } from "./discord/relay.js";
 import { startWebServer } from "./web/server.js";
 import { runSteamCmd } from "./server/install.js";
+import { InGameAdminCommands } from "./satisfactory/in-game-admin.js";
+import { GameChatFilter } from "./bridge/game-chat-filter.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -82,8 +84,24 @@ async function main(): Promise<void> {
     () => capabilities
   );
   discordConnected = discordRuntime.connected;
+  const inGameAdmin = new InGameAdminCommands(
+    config,
+    logger,
+    bus,
+    processManager,
+    api,
+    commandProvider,
+    messageProvider,
+    () => capabilities
+  );
+  const stopInGameAdmin = bus.onEvent((event) => {
+    if (event.type === "game-chat") {
+      void inGameAdmin.handleChat(event.chat);
+    }
+  });
   const discordRelay = new DiscordRelay(discordRuntime.client, config);
-  const stopRelay = new NormalisedRelay(bus, (event) => discordRelay.handle(event)).start();
+  const gameChatFilter = new GameChatFilter(config, bus, (event) => discordRelay.handle(event));
+  const stopRelay = new NormalisedRelay(bus, (event) => gameChatFilter.handle(event)).start();
 
   attachInteractiveConsole(
     async (line) => handleWrapperCommand(line, processManager, api, commandProvider, capabilities, logger),
@@ -95,6 +113,7 @@ async function main(): Promise<void> {
   const shutdown = async (): Promise<void> => {
     logger.info("SatisfactoryCord shutting down.");
     stopRelay();
+    stopInGameAdmin();
     logWatcher?.stop();
     await processManager.stop();
     await discordRuntime.client.destroy();
