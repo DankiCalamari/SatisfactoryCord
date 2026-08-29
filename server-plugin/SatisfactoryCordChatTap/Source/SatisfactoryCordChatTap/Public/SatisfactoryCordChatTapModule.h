@@ -12,4 +12,7 @@ public:
     virtual void ShutdownModule() override;
 
     static void EmitChatLine(const FString& PlayerName, const FString& Message);
+
+private:
+    FDelegateHandle ChatHookHandle;
 };

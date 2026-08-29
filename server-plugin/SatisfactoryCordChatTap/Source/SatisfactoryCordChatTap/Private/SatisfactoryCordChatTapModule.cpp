@@ -1,5 +1,10 @@
 #include "SatisfactoryCordChatTapModule.h"
 
+#include "FGChatManager.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Patching/NativeHookManager.h"
+
 #define LOCTEXT_NAMESPACE "FSatisfactoryCordChatTapModule"
 
 DEFINE_LOG_CATEGORY(LogSatisfactoryCordChatTap);
@@ -20,10 +25,34 @@ FString EscapeLogField(const FString& Value)
 void FSatisfactoryCordChatTapModule::StartupModule()
 {
     UE_LOG(LogSatisfactoryCordChatTap, Display, TEXT("SatisfactoryCordChatTap loaded."));
+
+    ChatHookHandle = SUBSCRIBE_UOBJECT_METHOD_AFTER(AFGChatManager, BroadcastChatMessage, [](
+        AFGChatManager*,
+        const FChatMessageStruct& NewMessage,
+        APlayerController* InstigatorPlayerController
+    ) {
+        if (NewMessage.MessageType != EFGChatMessageType::CMT_PlayerMessage)
+        {
+            return;
+        }
+
+        FString PlayerName = NewMessage.MessageSender.ToString();
+        if (PlayerName.IsEmpty() && InstigatorPlayerController && InstigatorPlayerController->PlayerState)
+        {
+            PlayerName = InstigatorPlayerController->PlayerState->GetPlayerName();
+        }
+
+        FSatisfactoryCordChatTapModule::EmitChatLine(PlayerName, NewMessage.MessageText.ToString());
+    });
 }
 
 void FSatisfactoryCordChatTapModule::ShutdownModule()
 {
+    if (ChatHookHandle.IsValid())
+    {
+        UNSUBSCRIBE_UOBJECT_METHOD(AFGChatManager, BroadcastChatMessage, ChatHookHandle);
+    }
+
     UE_LOG(LogSatisfactoryCordChatTap, Display, TEXT("SatisfactoryCordChatTap unloaded."));
 }
 

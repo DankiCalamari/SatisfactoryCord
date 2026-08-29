@@ -38,11 +38,17 @@ Shipping Server / Win64
 
 Use the Satisfactory Mod Manager or ficsit-cli to install the built server package into the Pelican server. Do not copy a Windows client build onto a Linux dedicated server.
 
+From this repository, you can also use:
+
+```powershell
+.\server-plugin\build-satisfactorycord-chat-tap.ps1 -SmlProjectDir C:\Path\To\SatisfactoryModLoader -UnrealEngineDir "C:\Path\To\UE_5.6.1-CSS" -Target LinuxServer
+```
+
+The script copies the plugin into the SML project, runs Alpakit's `PackagePlugin` automation command, and copies archived output to `outputs/SatisfactoryCordChatTap`.
+
 ## Hook Point
 
-The module includes `FSatisfactoryCordChatTapModule::EmitChatLine(PlayerName, Message)`, which writes the exact log format SatisfactoryCord reads.
-
-Wire that helper to the Satisfactory/SML chat receive hook for your installed SML and game header version. The hook API can move between Satisfactory releases, so the wrapper intentionally depends only on the log contract above.
+The module subscribes to `AFGChatManager::BroadcastChatMessage` with SML's native hook manager. It logs only `CMT_PlayerMessage` chat, then writes the exact log format SatisfactoryCord reads.
 
 ## Wrapper Setup
 
