@@ -1,0 +1,72 @@
+name: Build SatisfactoryCordChatTap
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Dedicated server target to build
+        required: true
+        default: LinuxServer
+        type: choice
+        options:
+          - LinuxServer
+          - WindowsServer
+      sml_project_dir:
+        description: Path to the SatisfactoryModLoader project on the self-hosted runner
+        required: false
+        type: string
+      unreal_engine_dir:
+        description: Path to the Satisfactory custom Unreal Engine install on the self-hosted runner
+        required: false
+        type: string
+
+jobs:
+  build-chat-tap:
+    name: Build chat tap mod
+    runs-on:
+      - self-hosted
+      - Windows
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out SatisfactoryCord
+        uses: actions/checkout@v4
+
+      - name: Resolve toolchain paths
+        id: paths
+        shell: pwsh
+        run: |
+          $smlProjectDir = "${{ inputs.sml_project_dir }}"
+          if (-not $smlProjectDir) {
+            $smlProjectDir = "${{ vars.SML_PROJECT_DIR }}"
+          }
+
+          $unrealEngineDir = "${{ inputs.unreal_engine_dir }}"
+          if (-not $unrealEngineDir) {
+            $unrealEngineDir = "${{ vars.UNREAL_ENGINE_DIR }}"
+          }
+
+          if (-not $smlProjectDir) {
+            throw "Set the workflow input sml_project_dir or repository variable SML_PROJECT_DIR."
+          }
+          if (-not $unrealEngineDir) {
+            throw "Set the workflow input unreal_engine_dir or repository variable UNREAL_ENGINE_DIR."
+          }
+
+          "sml_project_dir=$smlProjectDir" >> $env:GITHUB_OUTPUT
+          "unreal_engine_dir=$unrealEngineDir" >> $env:GITHUB_OUTPUT
+
+      - name: Build SatisfactoryCordChatTap
+        shell: pwsh
+        run: |
+          ./server-plugin/build-satisfactorycord-chat-tap.ps1 `
+            -SmlProjectDir "${{ steps.paths.outputs.sml_project_dir }}" `
+            -UnrealEngineDir "${{ steps.paths.outputs.unreal_engine_dir }}" `
+            -Target "${{ inputs.target }}"
+
+      - name: Upload mod package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SatisfactoryCordChatTap-${{ inputs.target }}
+          path: outputs/SatisfactoryCordChatTap/**
+          if-no-files-found: error

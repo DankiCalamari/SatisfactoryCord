@@ -46,6 +46,8 @@ From this repository, you can also use:
 
 The script copies the plugin into the SML project, runs Alpakit's `PackagePlugin` automation command, and copies archived output to `outputs/SatisfactoryCordChatTap`.
 
+You can also run the same script from GitHub Actions with a self-hosted Windows runner. See `docs/github-actions-mod-build.md`.
+
 ## Hook Point
 
 The module subscribes to `AFGChatManager::BroadcastChatMessage` with SML's native hook manager. It logs only `CMT_PlayerMessage` chat, then writes the exact log format SatisfactoryCord reads.
